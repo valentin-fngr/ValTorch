@@ -74,9 +74,9 @@ def dilate_kernel(kernel, dilation):
 def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1):
     """
         Args: 
-            input (tensor) : input tensor
+            input (4d tensor) : input tensor
                 shape : (N, c_in, h_in, w_in)
-            kernel (tensor) : convolution kernel 
+            kernel (4d tensor) : convolution kernel 
                 shape : (c_out, c_in, k1, k2)
             bias : 
             stride (int) : convolution stride
@@ -101,14 +101,13 @@ def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1):
 
     assert stride >= 1 and dilation >= 1 and padding >= 0 
 
-
     if padding != 0: 
         # TODO : add other padding strategies 
         # pad input
-        input = np.pad(input, padding)
+        input = np.pad(input, (0, 0, padding, padding))
 
 
-    batch_size, _, h,w = input.shape[2:]
+    batch_size, _, h,w = input.shape
     c_out, c_in, k1, k2 = kernel.shape
 
     has_dilation = True if dilation > 1 else False 
@@ -116,22 +115,23 @@ def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1):
     if has_dilation: 
         # apply dilation on the kernel
         kernel = dilate_kernel(kernel, dilation)
-        _, _, k1, k2
-        
+        _, _, k1, k2 = kernel.shape
+
+        if k1 > h or k2 > w: 
+            raise ValueError(f"dilation value forced kernel to be bigger than the input : {(k1,k2)} > {(h,w)}")
+    
     output_shape = (
         batch_size, 
         c_out,
-        (h +2*padding - dilation * (k1 - 1*int(has_dilation)) - 1*int(has_dilation)) / stride + 1, 
-        (w +2*padding - dilation * (k2 - 1*int(has_dilation)) - 1*int(has_dilation)) / stride + 1
+        int((h +2*padding - k1) / stride + 1), 
+        int((w +2*padding - k2) / stride + 1)
     )
-
 
     output = np.zeros(output_shape)
 
-    for i in range(0, h - k1, stride): 
-        for j in range(0, w - k2, stride):
-            
-            output[:,:,i,j] = np.sum(input[:,:,i:i+k1, j:j+k2] * kernel[None, ...]) # ADD AXIS !!!!
+    for row_idx, i in enumerate(range(0, h - k1 + 1, stride)): 
+        for col_idx, j in enumerate(range(0, w - k2 + 1, stride)):
+            output[:,:,row_idx,col_idx] = np.sum(input[:,None,:,i:i+k1, j:j+k2] * kernel[None, ...], axis=(2, 3, 4)) # ADD AXIS !!!!
 
     
     # readapt bias's shape

@@ -39,11 +39,5 @@ class TestDilationFunctions(unittest.TestCase):
         assert np.array_equal(oracle_new_kernel, new_kernel[0, 0])
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
     unittest.main()
