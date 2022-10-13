@@ -71,7 +71,7 @@ def dilate_kernel(kernel, dilation):
 
         
 
-def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1):
+def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1, style="forward"):
     """
         Args: 
             input (4d tensor) : input tensor
@@ -107,8 +107,8 @@ def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1):
         input = np.pad(input, (0, 0, padding, padding))
 
 
-    batch_size, _, h,w = input.shape
-    c_out, c_in, k1, k2 = kernel.shape
+    batch_size, c_in, h,w = input.shape
+    c_out, _, k1, k2 = kernel.shape
 
     has_dilation = True if dilation > 1 else False 
 
@@ -120,20 +120,34 @@ def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1):
         if k1 > h or k2 > w: 
             raise ValueError(f"dilation value forced kernel to be bigger than the input : {(k1,k2)} > {(h,w)}")
     
-    output_shape = (
-        batch_size, 
-        c_out,
-        int((h +2*padding - k1) / stride + 1), 
-        int((w +2*padding - k2) / stride + 1)
-    )
+    if style == "forward":
+        output_shape = (
+            batch_size, 
+            c_out,
+            int((h +2*padding - k1) / stride + 1), 
+            int((w +2*padding - k2) / stride + 1)
+        )
+    elif style == "backward": 
+        output_shape = (
+            kernel.shape[1], 
+            input.shape[1],
+            int((h +2*padding - k1) / stride + 1), 
+            int((w +2*padding - k2) / stride + 1)
+        )
+
+
 
     output = np.zeros(output_shape)
+    print("initial output shape : ", output.shape)
 
     for row_idx, i in enumerate(range(0, h - k1 + 1, stride)): 
         for col_idx, j in enumerate(range(0, w - k2 + 1, stride)):
-            output[:,:,row_idx,col_idx] = np.sum(input[:,None,:,i:i+k1, j:j+k2] * kernel[None, ...], axis=(2, 3, 4)) # ADD AXIS !!!!
+            if style == "forward": 
+                output[:,:,row_idx,col_idx] = np.sum(input[:,None,:,i:i+k1, j:j+k2] * kernel[None, ...], axis=(2, 3, 4)) 
+            elif style == "backward": 
+                output[:,:, row_idx, col_idx] = np.sum(input[:, None, :,i:i+k1, j:j+k2] * kernel[:, :, None,: ,:], axis=(0, 3, 4))
 
-    
+
     # readapt bias's shape
     if bias is not None: 
         return output + bias[None, :, None, None]

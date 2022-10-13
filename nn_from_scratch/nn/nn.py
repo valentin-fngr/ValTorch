@@ -53,3 +53,17 @@ class Conv2d(Layer):
         )
 
         return output 
+
+
+    def backward(self, delta, input): 
+        """
+            Backward pass to compute loss gradient with respect to the layer's parametres
+        """
+
+        if self.bias is not None: 
+            raise ValueError("We cannot compute gradient with respect to the bias yet !")
+        
+
+        backward_weight = F.conv2d(input, delta, style="backward")
+        return backward_weight
+        
