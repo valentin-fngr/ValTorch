@@ -1,4 +1,5 @@
 import numpy as np 
+from .exception import *
 
 
 def compute_dilation_shape(h, w, dilation): 
@@ -110,35 +111,46 @@ def conv2d(input, kernel, bias=None,  stride=1, padding=0, dilation=1, style="fo
     batch_size, c_in, h,w = input.shape
     c_out, _, k1, k2 = kernel.shape
 
+    print("input : ", input.shape)
+    print("kernel : ", kernel.shape)
+
     has_dilation = True if dilation > 1 else False 
 
     if has_dilation: 
         # apply dilation on the kernel
         kernel = dilate_kernel(kernel, dilation)
         _, _, k1, k2 = kernel.shape
-
         if k1 > h or k2 > w: 
             raise ValueError(f"dilation value forced kernel to be bigger than the input : {(k1,k2)} > {(h,w)}")
-    
-    if style == "forward":
-        output_shape = (
-            batch_size, 
-            c_out,
-            int((h +2*padding - k1) / stride + 1), 
-            int((w +2*padding - k2) / stride + 1)
-        )
-    elif style == "backward": 
-        output_shape = (
-            kernel.shape[1], 
-            input.shape[1],
-            int((h +2*padding - k1) / stride + 1), 
-            int((w +2*padding - k2) / stride + 1)
-        )
 
+
+    if style == "forward":
+        out_dim1 = batch_size
+        out_dim2 = c_out
+    elif style == "backward": 
+        out_dim1 = kernel.shape[1]
+        out_dim2 = input.shape[1]
+
+
+    new_height = (h +2*padding - k1) / stride + 1
+    new_width = (w +2*padding - k2) / stride + 1
+
+    if new_height % 1 != 0 or new_width % 1 != 0: 
+        raise FloatingShapesError(
+            f"kernel size = {k1} , padding = {padding} , stride = {stride} , input size = {(h, w)} produces output with shapes "\
+            f"{(out_dim1, out_dim2, new_height, new_width)}"
+        )
+    
+    output_shape = (
+        out_dim1, 
+        out_dim2,
+        int((h +2*padding - k1) / stride + 1), 
+        int((w +2*padding - k2) / stride + 1)
+    )
+        
 
 
     output = np.zeros(output_shape)
-    print("initial output shape : ", output.shape)
 
     for row_idx, i in enumerate(range(0, h - k1 + 1, stride)): 
         for col_idx, j in enumerate(range(0, w - k2 + 1, stride)):

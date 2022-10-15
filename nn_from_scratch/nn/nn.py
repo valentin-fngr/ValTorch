@@ -26,11 +26,15 @@ class Layer:
 
 
 
-
-
-
 class Conv2d(Layer): 
 
+    """
+        TODO : 
+            # padding
+                same : we find padding to have equal input and output shapes 
+                valid : we convolve inside the image
+    
+    """
 
     def __init__(self, weights, bias, stride=1, padding=0, dilation=1): 
         super().__init__(weights, bias)
@@ -63,7 +67,8 @@ class Conv2d(Layer):
         if self.bias is not None: 
             raise ValueError("We cannot compute gradient with respect to the bias yet !")
         
-
-        backward_weight = F.conv2d(input, delta, style="backward")
+        dilation = self.stride
+        backward_weight = F.conv2d(input, delta, style="backward", dilation=dilation)
         return backward_weight
+
         
